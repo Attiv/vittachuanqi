@@ -33,6 +33,12 @@ importers:
       vue-tsc:
         specifier: ^2.0.10
         version: 2.2.12(typescript@5.9.3)
+      workbox-build:
+        specifier: ^7.4.0
+        version: 7.4.0
+      workbox-window:
+        specifier: ^7.4.0
+        version: 7.4.0
 
 packages:
 
