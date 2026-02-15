@@ -102,6 +102,12 @@ body {
   margin-bottom: 8px;
 }
 
+.status-line-sub {
+  margin-top: -2px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
 .status-bar {
   margin-top: 8px;
 }
@@ -166,6 +172,45 @@ body {
   font-size: 12px;
 }
 
+.set-board {
+  margin: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.set-card {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d4deeb;
+  background: #f8fbff;
+  display: grid;
+  gap: 4px;
+  transition: all 160ms ease;
+}
+
+.set-card.active {
+  border-color: rgba(45, 108, 223, 0.4);
+  box-shadow: 0 6px 14px rgba(36, 76, 138, 0.14);
+}
+
+.set-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.set-tier {
+  font-size: 11px;
+  color: #667489;
+}
+
+.set-tier.active {
+  color: #1f3e6a;
+  font-weight: 600;
+}
+
 .paper-doll-wrap {
   margin: 12px;
   padding: 12px;
@@ -227,6 +272,22 @@ body {
   word-break: break-all;
 }
 
+.slot-set {
+  font-size: 10px;
+  color: #5f6f88;
+}
+
+.slot-meta {
+  font-size: 10px;
+  color: #607289;
+}
+
+.slot-recommend {
+  font-size: 10px;
+  color: #1f7a4f;
+  line-height: 1.25;
+}
+
 .rarity-common {
   color: #5d6572;
 }
@@ -252,6 +313,10 @@ body {
 .doll-slot.rarity-epic {
   border-color: rgba(210, 48, 48, 0.52);
   box-shadow: 0 5px 14px rgba(210, 48, 48, 0.15);
+}
+
+.doll-slot.set-piece {
+  border-style: dashed;
 }
 
 .slot-helmet {
@@ -319,6 +384,27 @@ body {
   color: #2b3e5f;
 }
 
+.bag-groups {
+  display: grid;
+  gap: 10px;
+}
+
+.bag-group {
+  border: 1px solid #d7dfec;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fdfefe;
+}
+
+.bag-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #566781;
+}
+
 .gear-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -332,6 +418,10 @@ body {
   background: #f9fbff;
   display: grid;
   gap: 6px;
+}
+
+.gear-set-piece {
+  border-style: dashed;
 }
 
 .gear-head {
@@ -355,12 +445,60 @@ body {
   color: #617086;
 }
 
+.gear-set-name {
+  font-size: 11px;
+  color: #556983;
+}
+
+.gear-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .gear-desc {
   font-size: 11px;
   line-height: 1.4;
   color: #55657e;
   max-height: 45px;
   overflow: hidden;
+}
+
+.set-tone-crimson {
+  color: #cd3348;
+}
+
+.set-tone-azure {
+  color: #287de2;
+}
+
+.set-tone-jade {
+  color: #198c71;
+}
+
+.set-tone-amber {
+  color: #c38a0a;
+}
+
+.set-glow-crimson {
+  border-color: rgba(205, 51, 72, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(205, 51, 72, 0.25), 0 5px 14px rgba(205, 51, 72, 0.18);
+}
+
+.set-glow-azure {
+  border-color: rgba(40, 125, 226, 0.52) !important;
+  box-shadow: 0 0 0 1px rgba(40, 125, 226, 0.22), 0 5px 14px rgba(40, 125, 226, 0.18);
+}
+
+.set-glow-jade {
+  border-color: rgba(25, 140, 113, 0.52) !important;
+  box-shadow: 0 0 0 1px rgba(25, 140, 113, 0.2), 0 5px 14px rgba(25, 140, 113, 0.18);
+}
+
+.set-glow-amber {
+  border-color: rgba(195, 138, 10, 0.56) !important;
+  box-shadow: 0 0 0 1px rgba(195, 138, 10, 0.2), 0 5px 14px rgba(195, 138, 10, 0.18);
 }
 
 .skill-card {
@@ -531,6 +669,10 @@ body {
   }
 
   .gear-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .set-board {
     grid-template-columns: 1fr;
   }
 }

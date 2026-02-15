@@ -8,11 +8,12 @@ const {
   player,
   shopItems,
   stats,
+  setRows,
   availableMaps,
   skillRows,
   inventoryRows,
   equippedRows,
-  bagRows,
+  bagGroups,
   battleLogs,
   battleStreaming,
   afkLogs,
@@ -27,6 +28,7 @@ const {
   preferStrengthStone,
   expToNextLevel,
   afkMinuteMs,
+  afkBattleRangeText,
   createCharacter,
   restart,
   challengeOne,
@@ -34,6 +36,7 @@ const {
   stopAfk,
   equipByIndex,
   strengthenBySlot,
+  learnSkill,
   toggleAuto,
   trainSkill,
   buyItem,
@@ -100,6 +103,20 @@ const rarityClass = (rarity: Rarity | null | undefined) => {
     return "rarity-magic";
   }
   return "rarity-common";
+};
+
+const setToneClass = (color: string | null | undefined) => {
+  if (!color) {
+    return "";
+  }
+  return `set-tone-${color}`;
+};
+
+const setGlowClass = (active: boolean, color: string | null | undefined) => {
+  if (!active || !color) {
+    return "";
+  }
+  return `set-glow-${color}`;
 };
 
 const onCreate = () => {
@@ -321,7 +338,14 @@ watch(player, () => {
             <div>{{ player.name }} · {{ player.profession }} · Lv.{{ player.level }}</div>
             <van-tag plain type="primary">金币 {{ player.gold }}</van-tag>
           </div>
-          <div class="status-line">攻击 {{ stats?.attack }} · 防御 {{ stats?.defense }} · 幸运 {{ stats?.luck }}</div>
+          <div class="status-line">
+            攻 {{ stats?.attack }} · 魔 {{ stats?.magic }} · 道 {{ stats?.tao }} · 速
+            {{ stats?.attackSpeed?.toFixed(2) }} · 防 {{ stats?.defense }} · 运 {{ stats?.luck }}
+          </div>
+          <div class="status-line status-line-sub">
+            暴击 {{ Math.floor((stats?.critRate ?? 0) * 100) }}% · 吸血 {{ Math.floor((stats?.lifesteal ?? 0) * 100) }}% ·
+            套装麻痹+{{ Math.floor((stats?.paralyzeChance ?? 0) * 100) }}%
+          </div>
           <div class="status-bar">
             <span>HP {{ player.hp }}/{{ stats?.maxHp }}</span>
             <van-progress :percentage="hpPercent" color="#ee0a24" stroke-width="8" />
@@ -415,7 +439,11 @@ watch(player, () => {
           <van-tab title="挂机">
             <div class="tab-body">
               <van-cell-group inset>
-                <van-field label="挂机速度" :value="`1分钟挂机=${afkMinuteMs / 1000}秒现实时间`" readonly />
+                <van-field
+                  label="挂机速度"
+                  :value="`1分钟挂机=${afkMinuteMs / 1000}秒现实时间，按耗时约${afkBattleRangeText}战`"
+                  readonly
+                />
                 <van-field label="挂机分钟">
                   <template #input>
                     <van-stepper v-model="afkMinutes" min="1" max="720" integer />
@@ -489,6 +517,28 @@ watch(player, () => {
                 </van-field>
               </van-cell-group>
 
+              <div class="set-board">
+                <div
+                  v-for="set in setRows"
+                  :key="set.id"
+                  class="set-card"
+                  :class="[setToneClass(set.color), { active: set.activeTierCount > 0 }]"
+                >
+                  <div class="set-head">
+                    <strong>{{ set.name }}套装</strong>
+                    <span>{{ set.count }}/{{ set.maxCount }}</span>
+                  </div>
+                  <div
+                    v-for="tier in set.tiers"
+                    :key="`${set.id}-${tier.pieces}`"
+                    class="set-tier"
+                    :class="{ active: tier.active }"
+                  >
+                    {{ tier.pieces }}件：{{ tier.description }}
+                  </div>
+                </div>
+              </div>
+
               <div class="paper-doll-wrap">
                 <div class="paper-doll">
                   <div class="avatar-core">侠</div>
@@ -497,12 +547,22 @@ watch(player, () => {
                     v-for="row in paperDollRows"
                     :key="row!.slot"
                     class="doll-slot"
-                    :class="[`slot-${row!.slot}`, rarityClass(row!.rarity)]"
+                    :class="[
+                      `slot-${row!.slot}`,
+                      rarityClass(row!.rarity),
+                      row!.isSetPiece ? 'set-piece' : '',
+                      setGlowClass(row!.setActive, row!.setColor),
+                    ]"
                     @click="row!.equipment && strengthenBySlot(row!.slot)"
                   >
                     <div class="slot-name">{{ row!.slotName }}</div>
-                    <div class="slot-value" :class="rarityClass(row!.rarity)">
+                    <div class="slot-value" :class="[rarityClass(row!.rarity), setToneClass(row!.setColor)]">
                       {{ row!.equipment ? row!.equipment.name : "(空)" }}
+                    </div>
+                    <div class="slot-meta">评分 {{ row!.score }}</div>
+                    <div v-if="row!.setName" class="slot-set">{{ row!.setName }}套</div>
+                    <div v-if="row!.recommendName" class="slot-recommend">
+                      推荐替换：{{ row!.recommendName }} (+{{ row!.recommendDiff }})
                     </div>
                   </div>
                 </div>
@@ -510,23 +570,42 @@ watch(player, () => {
 
               <div class="bag-wrap">
                 <div class="bag-title">背包装备</div>
-                <div class="gear-grid" v-if="bagRows.length > 0">
-                  <div v-for="row in bagRows" :key="`bag-${row.index}`" class="gear-card">
-                    <div class="gear-head">
-                      <strong class="gear-name" :class="rarityClass(row.rarity)">{{ row.name }} +{{ row.strengthen }}</strong>
-                      <span class="gear-slot">{{ row.slotName }}</span>
+                <div v-if="bagGroups.length > 0" class="bag-groups">
+                  <div v-for="group in bagGroups" :key="group.slot" class="bag-group">
+                    <div class="bag-group-title">
+                      <strong>{{ group.slotName }}</strong>
+                      <span>{{ group.rows.length }} 件</span>
                     </div>
-                    <div class="gear-meta">需求等级 Lv.{{ row.levelReq }}</div>
-                    <div class="gear-desc">{{ row.text }}</div>
-                    <van-button
-                      size="mini"
-                      type="success"
-                      plain
-                      :disabled="!row.canEquip"
-                      @click.stop="equipByIndex(row.index)"
-                    >
-                      装备
-                    </van-button>
+                    <div class="gear-grid">
+                      <div
+                        v-for="row in group.rows"
+                        :key="`bag-${row.index}`"
+                        class="gear-card"
+                        :class="[row.isSetPiece ? 'gear-set-piece' : '', setGlowClass(row.setActive, row.setColor)]"
+                      >
+                        <div class="gear-head">
+                          <strong class="gear-name" :class="[rarityClass(row.rarity), setToneClass(row.setColor)]">
+                            {{ row.name }} +{{ row.strengthen }}
+                          </strong>
+                          <span class="gear-slot">{{ row.slotName }}</span>
+                        </div>
+                        <div class="gear-tags">
+                          <van-tag v-if="row.recommended" type="success" plain>职业推荐</van-tag>
+                          <van-tag v-if="row.setName" plain type="warning">{{ row.setName }}套</van-tag>
+                        </div>
+                        <div class="gear-meta">评分 {{ row.score }} · 需求等级 Lv.{{ row.levelReq }}</div>
+                        <div class="gear-desc">{{ row.text }}</div>
+                        <van-button
+                          size="mini"
+                          type="success"
+                          plain
+                          :disabled="!row.canEquip"
+                          @click.stop="equipByIndex(row.index)"
+                        >
+                          装备
+                        </van-button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <van-empty v-else description="背包暂无装备掉落。" />
@@ -552,6 +631,9 @@ watch(player, () => {
                 </div>
                 <div class="skill-desc">{{ skill.desc }}</div>
                 <div class="skill-meta">耗蓝 {{ skill.manaCost }} · 冷却 {{ skill.cooldown }} 回合</div>
+                <div class="skill-meta" v-if="!skill.learned">
+                  技能书：{{ skill.bookName }}（持有 {{ skill.bookOwned }}）
+                </div>
 
                 <template v-if="skill.learned">
                   <van-progress
@@ -569,6 +651,20 @@ watch(player, () => {
                       @click="trainSkill(skill.id)"
                     >
                       卷轴修炼
+                    </van-button>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="skill-bottom">
+                    <span>需求等级 Lv.{{ skill.unlockLevel }}</span>
+                    <van-button
+                      size="small"
+                      type="primary"
+                      plain
+                      :disabled="!skill.canLearn"
+                      @click="learnSkill(skill.id)"
+                    >
+                      学习技能
                     </van-button>
                   </div>
                 </template>

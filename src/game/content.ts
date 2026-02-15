@@ -4,6 +4,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "warrior_attack_slash",
     name: "攻杀剑术",
+    bookName: "攻杀剑术技能书",
     profession: "战士",
     unlockLevel: 1,
     kind: "attack",
@@ -17,6 +18,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "warrior_half_moon",
     name: "半月弯刀",
+    bookName: "半月弯刀技能书",
     profession: "战士",
     unlockLevel: 7,
     kind: "attack",
@@ -30,6 +32,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "warrior_charge",
     name: "野蛮冲撞",
+    bookName: "野蛮冲撞技能书",
     profession: "战士",
     unlockLevel: 14,
     kind: "attack",
@@ -43,6 +46,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "warrior_fire_sword",
     name: "烈火剑法",
+    bookName: "烈火剑法技能书",
     profession: "战士",
     unlockLevel: 22,
     kind: "attack",
@@ -56,6 +60,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "mage_fireball",
     name: "火球术",
+    bookName: "火球术技能书",
     profession: "法师",
     unlockLevel: 1,
     kind: "attack",
@@ -69,6 +74,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "mage_thunder",
     name: "雷电术",
+    bookName: "雷电术技能书",
     profession: "法师",
     unlockLevel: 6,
     kind: "attack",
@@ -82,6 +88,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "mage_shield",
     name: "魔法盾",
+    bookName: "魔法盾技能书",
     profession: "法师",
     unlockLevel: 12,
     kind: "shield",
@@ -95,6 +102,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "mage_blizzard",
     name: "冰咆哮",
+    bookName: "冰咆哮技能书",
     profession: "法师",
     unlockLevel: 18,
     kind: "attack",
@@ -108,6 +116,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "taoist_talisman",
     name: "灵魂火符",
+    bookName: "灵魂火符技能书",
     profession: "道士",
     unlockLevel: 1,
     kind: "attack",
@@ -121,6 +130,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "taoist_heal",
     name: "治愈术",
+    bookName: "治愈术技能书",
     profession: "道士",
     unlockLevel: 4,
     kind: "heal",
@@ -134,6 +144,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "taoist_poison",
     name: "施毒术",
+    bookName: "施毒术技能书",
     profession: "道士",
     unlockLevel: 9,
     kind: "poison",
@@ -147,6 +158,7 @@ export const SKILL_TEMPLATES: SkillTemplate[] = [
   {
     id: "taoist_pet",
     name: "召唤神兽",
+    bookName: "召唤神兽技能书",
     profession: "道士",
     unlockLevel: 16,
     kind: "summon",
@@ -207,6 +219,20 @@ export const MAPS: MapArea[] = [
         skillText: "毒蜘蛛喷出腥绿毒液，气味刺鼻。",
       },
     ],
+    bosses: [
+      {
+        id: "bq_boss_orc_king",
+        name: "半兽统领",
+        isBoss: true,
+        level: 8,
+        hp: 760,
+        attack: 58,
+        defense: 24,
+        exp: 260,
+        gold: 190,
+        skillText: "半兽统领怒号震野，双斧连劈压得你难以喘息。",
+      },
+    ],
   },
   {
     id: "wm_temple",
@@ -247,6 +273,20 @@ export const MAPS: MapArea[] = [
         exp: 150,
         gold: 112,
         skillText: "火焰沃玛周身冒火，热浪灼人。",
+      },
+    ],
+    bosses: [
+      {
+        id: "wm_boss_master",
+        name: "沃玛教主",
+        isBoss: true,
+        level: 16,
+        hp: 1480,
+        attack: 96,
+        defense: 40,
+        exp: 720,
+        gold: 560,
+        skillText: "沃玛教主挥出灼热雷焰，祭坛碎石飞溅而起。",
       },
     ],
   },
@@ -291,6 +331,20 @@ export const MAPS: MapArea[] = [
         skillText: "祖玛卫士举锤下砸，地面裂开细纹。",
       },
     ],
+    bosses: [
+      {
+        id: "zm_boss_leader",
+        name: "祖玛教主",
+        isBoss: true,
+        level: 24,
+        hp: 2360,
+        attack: 148,
+        defense: 62,
+        exp: 1320,
+        gold: 980,
+        skillText: "祖玛教主擂动巨锤，祭坛之火喷薄，压迫感骤升。",
+      },
+    ],
   },
   {
     id: "cy_canyon",
@@ -331,6 +385,20 @@ export const MAPS: MapArea[] = [
         exp: 560,
         gold: 390,
         skillText: "赤月恶魔释放猩红冲击，邪气翻涌。",
+      },
+    ],
+    bosses: [
+      {
+        id: "cy_boss_demon_lord",
+        name: "赤月魔君",
+        isBoss: true,
+        level: 36,
+        hp: 3680,
+        attack: 216,
+        defense: 88,
+        exp: 2380,
+        gold: 1720,
+        skillText: "赤月魔君张开血翼，暗红冲击横扫峡谷。",
       },
     ],
   },

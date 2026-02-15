@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type {
   AfkResult,
   AfkSession,
+  Equipment,
   EquipmentSlot,
   GameSaveData,
   ItemName,
@@ -22,10 +23,14 @@ import {
   expToNextLevel,
   formatEquipment,
   getAvailableMaps,
+  getEquipmentStat,
   getMaps,
   getProfessionSkillBook,
+  getSetStatuses,
   getShopItems,
+  getTrainingNeed,
   getSlotName,
+  learnSkillByBook,
   pickRandomMonster,
   restorePlayer,
   runAutoBattle,
@@ -41,6 +46,11 @@ import { loadEncryptedJSON, removeEncryptedJSON, saveEncryptedJSON } from "./sec
 const STORAGE_KEY = "wei-legend-save-v2";
 const LEGACY_STORAGE_KEY = "wei-legend-save-v1";
 const AFK_MINUTE_MS = 8000;
+const AFK_MINUTE_SECONDS = 60;
+const AFK_BATTLE_SECONDS_MIN = 12;
+const AFK_BATTLE_SECONDS_MAX = 24;
+const AFK_BATTLE_COUNT_MIN = Math.floor(AFK_MINUTE_SECONDS / AFK_BATTLE_SECONDS_MAX);
+const AFK_BATTLE_COUNT_MAX = Math.ceil(AFK_MINUTE_SECONDS / AFK_BATTLE_SECONDS_MIN);
 const BATTLE_LINE_MS = 1000;
 const AFK_LINE_MS = 360;
 const MAX_LOG_LINES = 1800;
@@ -64,6 +74,52 @@ function createEmptyAfkResult(totalMinutes: number): AfkResult {
     totalMinutes,
     offlineMinutes: 0,
   };
+}
+
+function randInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+const SLOT_ORDER: EquipmentSlot[] = [
+  "helmet",
+  "necklace",
+  "leftBracelet",
+  "rightBracelet",
+  "leftRing",
+  "rightRing",
+  "belt",
+  "boots",
+  "weapon",
+  "armor",
+];
+
+function scoreEquipmentByProfession(item: Equipment, profession: Profession): number {
+  const attack = getEquipmentStat(item, "attack");
+  const magic = getEquipmentStat(item, "magic");
+  const tao = getEquipmentStat(item, "tao");
+  const speed = getEquipmentStat(item, "attackSpeed");
+  const defense = getEquipmentStat(item, "defense");
+  const hp = getEquipmentStat(item, "hp");
+  const mp = getEquipmentStat(item, "mp");
+  const luck = getEquipmentStat(item, "luck");
+
+  let score = 0;
+  if (profession === "战士") {
+    score += attack * 1.7 + speed * 220 + defense * 0.75 + hp * 0.16 + luck * 2.2;
+  } else if (profession === "法师") {
+    score += magic * 1.75 + speed * 190 + mp * 0.2 + defense * 0.58 + luck * 2;
+  } else {
+    score += tao * 1.75 + speed * 190 + hp * 0.14 + mp * 0.14 + defense * 0.62 + luck * 2;
+  }
+
+  if (item.special === "paralyze") {
+    score += profession === "战士" ? 70 : 42;
+  }
+  if (item.setId) {
+    score += 10;
+  }
+  score += item.strengthen * 4;
+  return Math.round(score * 10) / 10;
 }
 
 export function useWeiLegend() {
@@ -98,6 +154,57 @@ export function useWeiLegend() {
     return calcDerivedStats(player.value);
   });
 
+  const setRows = computed(() => {
+    if (!player.value) {
+      return [];
+    }
+    return getSetStatuses(player.value);
+  });
+  const activeSetIds = computed(() => {
+    const ids = new Set<string>();
+    setRows.value.forEach((row) => {
+      if (row.activeTierCount > 0) {
+        ids.add(row.id);
+      }
+    });
+    return ids;
+  });
+
+  const slotRecommendations = computed(() => {
+    if (!player.value) {
+      return new Map<EquipmentSlot, { source: "equipped" | "bag"; score: number; bagIndex?: number; name: string }>();
+    }
+    const result = new Map<EquipmentSlot, { source: "equipped" | "bag"; score: number; bagIndex?: number; name: string }>();
+
+    SLOT_ORDER.forEach((slot) => {
+      const equipped = player.value?.equipments[slot];
+      if (equipped) {
+        result.set(slot, {
+          source: "equipped",
+          score: scoreEquipmentByProfession(equipped, player.value!.profession),
+          name: equipped.name,
+        });
+      }
+    });
+
+    player.value.bag.forEach((item, index) => {
+      if ((player.value?.level ?? 0) < item.levelReq) {
+        return;
+      }
+      const score = scoreEquipmentByProfession(item, player.value!.profession);
+      const current = result.get(item.slot);
+      if (!current || score > current.score + 0.1) {
+        result.set(item.slot, {
+          source: "bag",
+          score,
+          bagIndex: index,
+          name: item.name,
+        });
+      }
+    });
+    return result;
+  });
+
   const skillRows = computed(() => {
     if (!player.value) {
       return [];
@@ -112,10 +219,16 @@ export function useWeiLegend() {
         manaCost: template.manaCost,
         cooldown: template.cooldown,
         unlockLevel: template.unlockLevel,
+        bookName: template.bookName,
+        bookOwned: player.value?.skillBooks[template.id] ?? 0,
+        canLearn:
+          !state &&
+          (player.value?.skillBooks[template.id] ?? 0) > 0 &&
+          (player.value?.level ?? 0) >= template.unlockLevel,
         learned: Boolean(state),
         level: state?.level ?? 0,
         training: state?.training ?? 0,
-        trainingNeed: state ? 70 + state.level * 40 : 0,
+        trainingNeed: state ? getTrainingNeed(state.level) : 0,
         autoUse: state?.autoUse ?? false,
       };
     });
@@ -135,13 +248,24 @@ export function useWeiLegend() {
     if (!player.value) {
       return [];
     }
-    return (Object.keys(player.value.equipments) as EquipmentSlot[]).map((slot) => {
+    return SLOT_ORDER.map((slot) => {
       const equipment = player.value?.equipments[slot] ?? null;
+      const equipScore = equipment ? scoreEquipmentByProfession(equipment, player.value!.profession) : 0;
+      const recommended = slotRecommendations.value.get(slot);
+      const recommendFromBag = recommended?.source === "bag" ? recommended : null;
+      const recommendDiff = recommendFromBag ? Math.max(0, Math.round((recommendFromBag.score - equipScore) * 10) / 10) : 0;
       return {
         slot,
         slotName: getSlotName(slot),
         equipment,
         rarity: equipment?.rarity ?? null,
+        setName: equipment?.setName ?? null,
+        setColor: equipment?.setColor ?? null,
+        isSetPiece: Boolean(equipment?.setId),
+        setActive: Boolean(equipment?.setId && activeSetIds.value.has(equipment.setId)),
+        score: equipScore,
+        recommendName: recommendDiff > 0 ? recommendFromBag?.name ?? null : null,
+        recommendDiff,
         name: equipment?.name ?? "(空)",
         text: equipment ? formatEquipment(equipment) : "(空)",
       };
@@ -154,14 +278,32 @@ export function useWeiLegend() {
     }
     return player.value.bag.map((item, index) => ({
       index,
+      slot: item.slot,
       text: formatEquipment(item),
       levelReq: item.levelReq,
       slotName: getSlotName(item.slot),
       rarity: item.rarity,
+      setName: item.setName ?? null,
+      setColor: item.setColor ?? null,
+      isSetPiece: Boolean(item.setId),
+      setActive: Boolean(item.setId && activeSetIds.value.has(item.setId)),
+      score: scoreEquipmentByProfession(item, player.value!.profession),
+      recommended: slotRecommendations.value.get(item.slot)?.source === "bag" && slotRecommendations.value.get(item.slot)?.bagIndex === index,
       name: item.name,
       strengthen: item.strengthen,
       canEquip: (player.value?.level ?? 0) >= item.levelReq,
     }));
+  });
+
+  const bagGroups = computed(() => {
+    if (!player.value) {
+      return [];
+    }
+    return SLOT_ORDER.map((slot) => ({
+      slot,
+      slotName: getSlotName(slot),
+      rows: bagRows.value.filter((row) => row.slot === slot),
+    })).filter((group) => group.rows.length > 0);
   });
 
   const afkRunning = computed(() => afkSession.value?.running === true);
@@ -339,21 +481,58 @@ export function useWeiLegend() {
       return false;
     }
 
-    const monster = pickRandomMonster(area);
-    const result = runAutoBattle(player.value, area, monster, true);
+    const offlineRate = mode === "offline" ? 0.75 : 1;
     const minuteNo = session.doneMinutes + 1;
-    const title = mode === "offline" ? `[离线挂机·第${minuteNo}分钟]` : `[挂机·第${minuteNo}分钟]`;
-    pushAfkLogs([title, `你在【${area.name}】遭遇【${monster.name}】。`, ...result.logs]);
+    const minuteTitle =
+      mode === "offline"
+        ? `[离线挂机·第${minuteNo}分钟·收益75%·按战斗耗时推进]`
+        : `[挂机·第${minuteNo}分钟·按战斗耗时推进]`;
+    const minuteLogs: string[] = [minuteTitle];
 
     if (!afkResult.value) {
       afkResult.value = createEmptyAfkResult(session.totalMinutes);
     }
-    afkResult.value.wins += result.win ? 1 : 0;
-    afkResult.value.fails += result.win ? 0 : 1;
-    afkResult.value.exp += result.exp;
-    afkResult.value.gold += result.gold;
-    afkResult.value.drops.push(...result.drops);
-    afkResult.value.logs = trimLogs([...afkResult.value.logs, title, ...result.logs]);
+
+    let failedThisMinute = false;
+    let battleIndex = 0;
+    let spentSeconds = 0;
+    while (spentSeconds < AFK_MINUTE_SECONDS) {
+      if (battleIndex > 0 && spentSeconds + AFK_BATTLE_SECONDS_MIN > AFK_MINUTE_SECONDS) {
+        break;
+      }
+      battleIndex += 1;
+      const rawBattleSeconds = randInt(AFK_BATTLE_SECONDS_MIN, AFK_BATTLE_SECONDS_MAX);
+      const battleSeconds = Math.min(rawBattleSeconds, AFK_MINUTE_SECONDS - spentSeconds);
+      spentSeconds += battleSeconds;
+
+      const monster = pickRandomMonster(area);
+      const result = runAutoBattle(player.value, area, monster, true, {
+        rewardRate: offlineRate,
+        dropRate: offlineRate,
+      });
+      const bossTag = monster.isBoss ? "[Boss]" : "";
+      const battleTitle = `第${battleIndex}战（耗时${battleSeconds}秒）：你在【${area.name}】遭遇${bossTag}【${monster.name}】。`;
+      minuteLogs.push(battleTitle, ...result.logs);
+
+      afkResult.value.wins += result.win ? 1 : 0;
+      afkResult.value.fails += result.win ? 0 : 1;
+      afkResult.value.exp += result.exp;
+      afkResult.value.gold += result.gold;
+      afkResult.value.drops.push(...result.drops);
+
+      if (result.win && player.value) {
+        const s = calcDerivedStats(player.value);
+        player.value.hp = Math.min(s.maxHp, player.value.hp + Math.floor(s.maxHp * 0.12));
+        player.value.mp = Math.min(s.maxMp, player.value.mp + Math.floor(s.maxMp * 0.15));
+      } else {
+        failedThisMinute = true;
+        break;
+      }
+    }
+    minuteLogs.push(`本分钟战斗耗时 60 秒，完成 ${battleIndex} 战。`);
+
+    pushAfkLogs(minuteLogs);
+    afkResult.value.logs = trimLogs([...afkResult.value.logs, ...minuteLogs]);
     afkResult.value.processedMinutes += 1;
     if (mode === "offline") {
       afkResult.value.offlineMinutes += 1;
@@ -362,21 +541,15 @@ export function useWeiLegend() {
     session.doneMinutes += 1;
     session.lastTickAt = Date.now();
 
-    if (result.win && player.value) {
-      const s = calcDerivedStats(player.value);
-      player.value.hp = Math.min(s.maxHp, player.value.hp + Math.floor(s.maxHp * 0.12));
-      player.value.mp = Math.min(s.maxMp, player.value.mp + Math.floor(s.maxMp * 0.15));
-    }
-
-    if (!result.win || session.doneMinutes >= session.totalMinutes) {
+    if (failedThisMinute || session.doneMinutes >= session.totalMinutes) {
       stopAfk();
-      notice.value = result.win
+      notice.value = !failedThisMinute
         ? `挂机结束：胜利 ${afkResult.value.wins} 场，经验 ${afkResult.value.exp}，金币 ${afkResult.value.gold}。`
         : "挂机中途失败，已自动停止。";
       return false;
     }
 
-    notice.value = `挂机进行中：${session.doneMinutes}/${session.totalMinutes} 分钟`;
+    notice.value = `挂机进行中：${session.doneMinutes}/${session.totalMinutes} 分钟（按战斗耗时推进）`;
     return true;
   };
 
@@ -532,7 +705,8 @@ export function useWeiLegend() {
     }
     const monster = pickRandomMonster(area);
     const result = runAutoBattle(player.value, area, monster, true);
-    streamBattleLines([`你进入【${area.name}】，遭遇了【${monster.name}】！`, ...result.logs]);
+    const bossText = monster.isBoss ? "[Boss]" : "";
+    streamBattleLines([`你进入【${area.name}】，遭遇了${bossText}【${monster.name}】！`, ...result.logs]);
     notice.value = result.win
       ? `战斗胜利，获得经验 ${result.exp}，金币 ${result.gold}。`
       : "战斗失败，已自动撤离。";
@@ -570,7 +744,7 @@ export function useWeiLegend() {
     afkResult.value = createEmptyAfkResult(minutes);
     stopAfkStream(true);
     afkLogs.value = [`开始挂机：地图【${area.name}】，计划 ${minutes} 分钟。`];
-    notice.value = `挂机已开始，当前换算速度：1分钟挂机=${AFK_MINUTE_MS / 1000}秒现实时间。`;
+    notice.value = `挂机已开始：1分钟挂机=${AFK_MINUTE_MS / 1000}秒现实时间，按战斗耗时约${AFK_BATTLE_COUNT_MIN}-${AFK_BATTLE_COUNT_MAX}战。`;
     startAfkTimer();
   };
 
@@ -593,6 +767,13 @@ export function useWeiLegend() {
       return;
     }
     notice.value = toggleSkillAuto(player.value, skillId);
+  };
+
+  const learnSkill = (skillId: string) => {
+    if (!player.value) {
+      return;
+    }
+    notice.value = learnSkillByBook(player.value, skillId);
   };
 
   const trainSkill = (skillId: string) => {
@@ -705,11 +886,13 @@ export function useWeiLegend() {
     maps,
     shopItems,
     stats,
+    setRows,
     availableMaps,
     skillRows,
     inventoryRows,
     equippedRows,
     bagRows,
+    bagGroups,
     battleLogs,
     battleStreaming,
     afkLogs,
@@ -725,6 +908,7 @@ export function useWeiLegend() {
     preferStrengthStone,
     expToNextLevel,
     afkMinuteMs: AFK_MINUTE_MS,
+    afkBattleRangeText: `${AFK_BATTLE_COUNT_MIN}-${AFK_BATTLE_COUNT_MAX}`,
     createCharacter,
     restart,
     challengeOne,
@@ -732,6 +916,7 @@ export function useWeiLegend() {
     stopAfk,
     equipByIndex,
     strengthenBySlot,
+    learnSkill,
     toggleAuto,
     trainSkill,
     buyItem,

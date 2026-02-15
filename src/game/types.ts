@@ -21,6 +21,7 @@ export type Rarity = "普通" | "精良" | "稀有" | "史诗";
 export interface SkillTemplate {
   id: string;
   name: string;
+  bookName: string;
   profession: Profession;
   unlockLevel: number;
   kind: SkillKind;
@@ -46,19 +47,29 @@ export interface Equipment {
   slot: EquipmentSlot;
   levelReq: number;
   rarity: Rarity;
+  setId?: string;
+  setName?: string;
+  setColor?: "crimson" | "azure" | "jade" | "amber";
   attack: number;
+  magic: number;
+  tao: number;
+  attackSpeed: number;
   defense: number;
   hp: number;
   mp: number;
   luck: number;
   strengthen: number;
   isElite: boolean;
-  eliteBonus: Partial<Record<"attack" | "defense" | "hp" | "mp" | "luck", number>>;
+  eliteBonus: Partial<
+    Record<"attack" | "magic" | "tao" | "attackSpeed" | "defense" | "hp" | "mp" | "luck", number>
+  >;
+  special?: "paralyze";
 }
 
 export interface MonsterTemplate {
   id: string;
   name: string;
+  isBoss?: boolean;
   level: number;
   hp: number;
   attack: number;
@@ -75,6 +86,7 @@ export interface MapArea {
   maxLevel: number;
   dropTier: number;
   monsters: MonsterTemplate[];
+  bosses?: MonsterTemplate[];
 }
 
 export interface ShopItem {
@@ -93,6 +105,7 @@ export interface Player {
   hp: number;
   mp: number;
   inventory: Record<ItemName, number>;
+  skillBooks: Record<string, number>;
   equipments: Record<EquipmentSlot, Equipment | null>;
   bag: Equipment[];
   skills: Record<string, SkillState>;
@@ -106,6 +119,12 @@ export interface Player {
 
 export interface DerivedStats {
   attack: number;
+  magic: number;
+  tao: number;
+  attackSpeed: number;
+  critRate: number;
+  lifesteal: number;
+  paralyzeChance: number;
   defense: number;
   maxHp: number;
   maxMp: number;
