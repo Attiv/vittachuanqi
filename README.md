@@ -39,3 +39,28 @@ npm run preview
 
 - 纯单机运行，数据保存在浏览器 `localStorage`。
 - 存档使用 AES-GCM 加密封装（键：`wei-legend-save-v2`）。
+
+## 部署到 Vercel
+
+项目可以直接部署到 Vercel，已提供 `vercel.json`（适配 Vite + PWA）。
+
+### 方式一：通过 GitHub 导入（推荐）
+
+1. 将仓库推送到 GitHub。
+2. 在 Vercel 点击 `Add New Project`，选择该仓库导入。
+3. 构建设置确认：
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+4. 点击 Deploy。
+
+### 方式二：Vercel CLI
+
+```bash
+npm i -g vercel
+vercel
+vercel --prod
+```
+
+说明：
+- 首次部署后，建议在浏览器打开一次，等待 PWA 资源缓存完成。
+- `sw.js` 与 `manifest.webmanifest` 已设置为 `no-cache`，避免 PWA 更新不及时。
