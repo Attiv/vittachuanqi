@@ -2084,6 +2084,187 @@ export function cheatGenerateEquipment(player: Player, count = 4): string {
   return `作弊生效：背包新增 ${n} 件高级装备。`;
 }
 
+export function cheatGenerateSetEquipment(player: Player, setId: string): string {
+  const setTemplate = LEGEND_SETS.find((s) => s.id === setId);
+  if (!setTemplate) {
+    return "套装不存在。";
+  }
+
+  const professions = setTemplate.professions || [];
+  if (!professions.includes(player.profession)) {
+    return `该套装不适合${player.profession}职业。`;
+  }
+
+  const level = Math.max(player.level, 30);
+  let addedCount = 0;
+
+  for (const slot of setTemplate.slots) {
+    const equipment = generateSetPiece(setTemplate, slot, level, professions);
+    player.bag.push(equipment);
+    addedCount += 1;
+  }
+
+  return `作弊生效：获得【${setTemplate.name}】套装全部 ${addedCount} 件装备。`;
+}
+
+function generateSetPiece(
+  setTemplate: SetTemplate,
+  slot: EquipmentSlot,
+  level: number,
+  professions: Profession[],
+): Equipment {
+  const name = setTemplate.pieceNames[slot] || `${setTemplate.name}${SLOT_NAMES[slot]}`;
+  const rarity: Rarity = "史诗";
+  const rarityMultiplier = 1.78;
+
+  const baseLevel = Math.max(level, 25);
+  let attack = 0;
+  let magic = 0;
+  let tao = 0;
+  let attackSpeed = 0;
+  let defense = 0;
+  let hp = 0;
+  let mp = 0;
+  let eqLuck = 0;
+
+  // 根据槽位生成属性
+  if (slot === "weapon") {
+    if (professions.includes("战士")) {
+      attack = Math.floor((baseLevel * 2.2 + randInt(12, 28)) * rarityMultiplier);
+      attackSpeed = round2((0.01 + randFloat(0.01, 0.06)) * rarityMultiplier);
+      eqLuck = randInt(0, 2);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor((baseLevel * 2.2 + randInt(12, 28)) * rarityMultiplier);
+      attackSpeed = round2((0.01 + randFloat(0.01, 0.06)) * rarityMultiplier);
+      eqLuck = randInt(0, 2);
+    } else {
+      tao = Math.floor((baseLevel * 2.2 + randInt(12, 28)) * rarityMultiplier);
+      attackSpeed = round2((0.01 + randFloat(0.01, 0.06)) * rarityMultiplier);
+      eqLuck = randInt(0, 2);
+    }
+  } else if (slot === "armor") {
+    defense = Math.floor((baseLevel * 0.85 + randInt(8, 20)) * rarityMultiplier);
+    hp = Math.floor((40 + randInt(40, 92)) * rarityMultiplier);
+    if (professions.includes("战士")) {
+      attack = Math.floor(randInt(3, 10) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor(randInt(3, 10) * rarityMultiplier);
+    } else {
+      tao = Math.floor(randInt(3, 10) * rarityMultiplier);
+    }
+  } else if (slot === "helmet") {
+    defense = Math.floor((baseLevel * 0.82 * 0.7 + randInt(5, 14)) * rarityMultiplier);
+    hp = Math.floor((22 + randInt(22, 56)) * rarityMultiplier);
+    if (professions.includes("战士")) {
+      attack = Math.floor(randInt(2, 8) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor(randInt(2, 8) * rarityMultiplier);
+    } else {
+      tao = Math.floor(randInt(2, 8) * rarityMultiplier);
+    }
+  } else if (slot === "necklace") {
+    if (professions.includes("战士")) {
+      attack = Math.floor((baseLevel * 0.45 + randInt(4, 12)) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor((baseLevel * 0.45 + randInt(4, 12)) * rarityMultiplier);
+    } else {
+      tao = Math.floor((baseLevel * 0.45 + randInt(4, 12)) * rarityMultiplier);
+    }
+    attackSpeed = round2(randFloat(0, 0.03) * rarityMultiplier);
+    eqLuck = randInt(1, 3);
+  } else if (slot === "leftBracelet" || slot === "rightBracelet") {
+    if (professions.includes("战士")) {
+      attack = Math.floor((baseLevel * 0.32 + randInt(2, 8)) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor((baseLevel * 0.32 + randInt(2, 8)) * rarityMultiplier);
+    } else {
+      tao = Math.floor((baseLevel * 0.32 + randInt(2, 8)) * rarityMultiplier);
+    }
+    defense = Math.floor((baseLevel * 0.18 + randInt(1, 5)) * rarityMultiplier);
+    attackSpeed = round2((0.01 + randFloat(0.01, 0.04)) * rarityMultiplier);
+    hp = Math.floor(randInt(10, 30) * rarityMultiplier);
+  } else if (slot === "leftRing" || slot === "rightRing") {
+    if (professions.includes("战士")) {
+      attack = Math.floor((baseLevel * 0.4 + randInt(3, 10)) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor((baseLevel * 0.4 + randInt(3, 10)) * rarityMultiplier);
+    } else {
+      tao = Math.floor((baseLevel * 0.4 + randInt(3, 10)) * rarityMultiplier);
+    }
+    attackSpeed = round2(randFloat(0, 0.03) * rarityMultiplier);
+    eqLuck = randInt(0, 2);
+    defense = randInt(0, 5);
+  } else if (slot === "belt") {
+    defense = Math.floor((baseLevel * 0.42 + randInt(2, 8)) * rarityMultiplier);
+    hp = Math.floor((28 + randInt(28, 64)) * rarityMultiplier);
+    if (professions.includes("战士")) {
+      attack = Math.floor(randInt(1, 6) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor(randInt(1, 6) * rarityMultiplier);
+    } else {
+      tao = Math.floor(randInt(1, 6) * rarityMultiplier);
+    }
+  } else if (slot === "boots") {
+    defense = Math.floor((baseLevel * 0.36 + randInt(2, 8)) * rarityMultiplier);
+    hp = Math.floor((20 + randInt(20, 52)) * rarityMultiplier);
+    mp = Math.floor(randInt(8, 20) * rarityMultiplier);
+    attackSpeed = round2((0.01 + randFloat(0.01, 0.03)) * rarityMultiplier);
+    if (professions.includes("战士")) {
+      attack = Math.floor(randInt(1, 5) * rarityMultiplier);
+    } else if (professions.includes("法师")) {
+      magic = Math.floor(randInt(1, 5) * rarityMultiplier);
+    } else {
+      tao = Math.floor(randInt(1, 5) * rarityMultiplier);
+    }
+  }
+
+  // 添加极品属性
+  const isElite = true;
+  const eliteBonus: Equipment["eliteBonus"] = {};
+  const roll = randInt(0, 6);
+  if (roll === 0) {
+    eliteBonus.attack = randInt(5, 12);
+  } else if (roll === 1) {
+    eliteBonus.magic = randInt(5, 12);
+  } else if (roll === 2) {
+    eliteBonus.tao = randInt(5, 12);
+  } else if (roll === 3) {
+    eliteBonus.attackSpeed = round2(randFloat(0.02, 0.05));
+  } else if (roll === 4) {
+    eliteBonus.defense = randInt(5, 12);
+  } else if (roll === 5) {
+    eliteBonus.hp = randInt(40, 80);
+  } else {
+    eliteBonus.luck = randInt(2, 3);
+  }
+
+  return {
+    id: randomId("eq"),
+    name,
+    slot,
+    levelReq: Math.max(1, level - 2),
+    rarity,
+    setId: setTemplate.id,
+    setName: setTemplate.name,
+    setColor: setTemplate.color,
+    attack,
+    magic,
+    tao,
+    attackSpeed,
+    defense,
+    hp,
+    mp,
+    luck: eqLuck,
+    strengthen: 0,
+    isElite,
+    eliteBonus,
+  };
+}
+
+export function getAllSets(): SetTemplate[] {
+  return LEGEND_SETS;
+}
+
 function calculateEquipmentSellPrice(equipment: Equipment): number {
   // 基础价格根据等级需求
   let basePrice = equipment.levelReq * 15;

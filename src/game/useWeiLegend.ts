@@ -15,6 +15,7 @@ import {
   cheatAddGold,
   cheatAddItems,
   cheatGenerateEquipment,
+  cheatGenerateSetEquipment,
   cheatHeal,
   cheatLevelUp,
   cheatUnlockAllSkills,
@@ -22,6 +23,7 @@ import {
   equipFromBag,
   expToNextLevel,
   formatEquipment,
+  getAllSets,
   getAvailableMaps,
   getEquipmentStat,
   getMaps,
@@ -893,6 +895,13 @@ export function useWeiLegend() {
     notice.value = cheatGenerateEquipment(player.value, 4);
   };
 
+  const doCheatSpawnSet = (setId: string) => {
+    if (!player.value) {
+      return;
+    }
+    notice.value = cheatGenerateSetEquipment(player.value, setId);
+  };
+
   const sellAllGear = () => {
     if (!player.value) {
       return;
@@ -906,6 +915,13 @@ export function useWeiLegend() {
     }
     notice.value = sellNonRecommendedEquipment(player.value, recommendedBagIndices.value);
   };
+
+  const availableSets = computed(() => {
+    if (!player.value) {
+      return [];
+    }
+    return getAllSets().filter((set) => (set.professions || []).includes(player.value!.profession));
+  });
 
   return {
     player,
@@ -959,6 +975,8 @@ export function useWeiLegend() {
     doCheatLevelUp,
     doCheatUnlockSkills,
     doCheatSpawnGear,
+    doCheatSpawnSet,
+    availableSets,
     sellAllGear,
     sellNonRecommendedGear,
   };

@@ -629,6 +629,57 @@ body {
   gap: 8px;
 }
 
+.set-selector {
+  padding: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.set-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.set-selector-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.set-selector-list {
+  display: grid;
+  gap: 10px;
+}
+
+.set-selector-item {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.set-selector-item:active {
+  transform: scale(0.98);
+  background: #f5f8fb;
+}
+
+.set-selector-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.set-selector-desc {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
 @media (max-width: 700px) {
   .page {
     padding: 0 0 calc(16px + env(safe-area-inset-bottom));

@@ -53,6 +53,8 @@ const {
   doCheatLevelUp,
   doCheatUnlockSkills,
   doCheatSpawnGear,
+  doCheatSpawnSet,
+  availableSets,
   sellAllGear,
   sellNonRecommendedGear,
 } = useWeiLegend();
@@ -164,6 +166,7 @@ const showCheatUnlock = ref(false);
 const cheatCode = ref("");
 
 const cheatOpen = ref(false);
+const showSetSelector = ref(false);
 const cheatPos = reactive({ x: 0, y: 0 });
 const dragState = reactive({
   active: false,
@@ -271,7 +274,7 @@ function initCheatPosition() {
   cheatPos.y = Math.max(64, window.innerHeight * 0.22);
 }
 
-function runCheat(action: "gold" | "heal" | "items" | "level" | "skills" | "gear") {
+function runCheat(action: "gold" | "heal" | "items" | "level" | "skills" | "gear" | "set") {
   if (action === "gold") {
     doCheatAddGold();
   } else if (action === "heal") {
@@ -282,9 +285,16 @@ function runCheat(action: "gold" | "heal" | "items" | "level" | "skills" | "gear
     doCheatLevelUp();
   } else if (action === "skills") {
     doCheatUnlockSkills();
+  } else if (action === "set") {
+    showSetSelector.value = true;
   } else {
     doCheatSpawnGear();
   }
+}
+
+function selectSet(setId: string) {
+  doCheatSpawnSet(setId);
+  showSetSelector.value = false;
 }
 
 onMounted(() => {
@@ -301,6 +311,7 @@ onBeforeUnmount(() => {
 watch(player, () => {
   if (!player.value) {
     cheatOpen.value = false;
+    showSetSelector.value = false;
   }
 });
 </script>
@@ -727,9 +738,16 @@ watch(player, () => {
         <van-button size="small" type="primary" plain @click="runCheat('level')">升1级</van-button>
         <van-button size="small" type="primary" plain @click="runCheat('skills')">解锁全技能</van-button>
         <van-button size="small" type="primary" plain @click="runCheat('gear')">刷4件装备</van-button>
+        <van-button size="small" type="success" plain @click="runCheat('set')">获得套装</van-button>
       </div>
 
-      <button class="cheat-btn" @pointerdown.prevent="onCheatPointerDown" @click="onCheatClick">秘</button>
+      <button
+        class="cheat-btn"
+        @pointerdown.prevent="onCheatPointerDown"
+        @click="onCheatClick"
+      >
+        秘
+      </button>
     </div>
 
     <van-popup v-model:show="showCheatUnlock" round class="cheat-popup">
@@ -739,6 +757,26 @@ watch(player, () => {
         <div class="cheat-popup-actions">
           <van-button size="small" @click="cancelCheatUnlock">取消</van-button>
           <van-button size="small" type="primary" @click="confirmCheatUnlock">确认</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <van-popup v-model:show="showSetSelector" round position="bottom" :style="{ height: '60%' }">
+      <div class="set-selector">
+        <div class="set-selector-header">
+          <h3>选择套装</h3>
+          <van-button size="small" @click="showSetSelector = false">取消</van-button>
+        </div>
+        <div class="set-selector-list">
+          <div
+            v-for="set in availableSets"
+            :key="set.id"
+            class="set-selector-item"
+            @click="selectSet(set.id)"
+          >
+            <div class="set-selector-name">{{ set.name }}套装</div>
+            <div class="set-selector-desc">{{ set.slots.length }}件套</div>
+          </div>
         </div>
       </div>
     </van-popup>
