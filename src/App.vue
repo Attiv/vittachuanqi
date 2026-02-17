@@ -53,6 +53,8 @@ const {
   doCheatLevelUp,
   doCheatUnlockSkills,
   doCheatSpawnGear,
+  sellAllGear,
+  sellNonRecommendedGear,
 } = useWeiLegend();
 
 const activeTab = ref(0);
@@ -570,40 +572,46 @@ watch(player, () => {
 
               <div class="bag-wrap">
                 <div class="bag-title">背包装备</div>
-                <div v-if="bagGroups.length > 0" class="bag-groups">
-                  <div v-for="group in bagGroups" :key="group.slot" class="bag-group">
-                    <div class="bag-group-title">
-                      <strong>{{ group.slotName }}</strong>
-                      <span>{{ group.rows.length }} 件</span>
-                    </div>
-                    <div class="gear-grid">
-                      <div
-                        v-for="row in group.rows"
-                        :key="`bag-${row.index}`"
-                        class="gear-card"
-                        :class="[row.isSetPiece ? 'gear-set-piece' : '', setGlowClass(row.setActive, row.setColor)]"
-                      >
-                        <div class="gear-head">
-                          <strong class="gear-name" :class="[rarityClass(row.rarity), setToneClass(row.setColor)]">
-                            {{ row.name }} +{{ row.strengthen }}
-                          </strong>
-                          <span class="gear-slot">{{ row.slotName }}</span>
-                        </div>
-                        <div class="gear-tags">
-                          <van-tag v-if="row.recommended" type="success" plain>职业推荐</van-tag>
-                          <van-tag v-if="row.setName" plain type="warning">{{ row.setName }}套</van-tag>
-                        </div>
-                        <div class="gear-meta">评分 {{ row.score }} · 需求等级 Lv.{{ row.levelReq }}</div>
-                        <div class="gear-desc">{{ row.text }}</div>
-                        <van-button
-                          size="mini"
-                          type="success"
-                          plain
-                          :disabled="!row.canEquip"
-                          @click.stop="equipByIndex(row.index)"
+                <div v-if="bagGroups.length > 0">
+                  <div class="btn-grid" style="margin-bottom: 12px;">
+                    <van-button type="warning" plain @click="sellNonRecommendedGear">出售非推荐装备</van-button>
+                    <van-button type="danger" plain @click="sellAllGear">出售所有装备</van-button>
+                  </div>
+                  <div class="bag-groups">
+                    <div v-for="group in bagGroups" :key="group.slot" class="bag-group">
+                      <div class="bag-group-title">
+                        <strong>{{ group.slotName }}</strong>
+                        <span>{{ group.rows.length }} 件</span>
+                      </div>
+                      <div class="gear-grid">
+                        <div
+                          v-for="row in group.rows"
+                          :key="`bag-${row.index}`"
+                          class="gear-card"
+                          :class="[row.isSetPiece ? 'gear-set-piece' : '', setGlowClass(row.setActive, row.setColor)]"
                         >
-                          装备
-                        </van-button>
+                          <div class="gear-head">
+                            <strong class="gear-name" :class="[rarityClass(row.rarity), setToneClass(row.setColor)]">
+                              {{ row.name }} +{{ row.strengthen }}
+                            </strong>
+                            <span class="gear-slot">{{ row.slotName }}</span>
+                          </div>
+                          <div class="gear-tags">
+                            <van-tag v-if="row.recommended" type="success" plain>职业推荐</van-tag>
+                            <van-tag v-if="row.setName" plain type="warning">{{ row.setName }}套</van-tag>
+                          </div>
+                          <div class="gear-meta">评分 {{ row.score }} · 需求等级 Lv.{{ row.levelReq }}</div>
+                          <div class="gear-desc">{{ row.text }}</div>
+                          <van-button
+                            size="mini"
+                            type="success"
+                            plain
+                            :disabled="!row.canEquip"
+                            @click.stop="equipByIndex(row.index)"
+                          >
+                            装备
+                          </van-button>
+                        </div>
                       </div>
                     </div>
                   </div>

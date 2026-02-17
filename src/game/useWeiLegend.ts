@@ -34,6 +34,8 @@ import {
   pickRandomMonster,
   restorePlayer,
   runAutoBattle,
+  sellAllEquipment,
+  sellNonRecommendedEquipment,
   toggleSkillAuto,
   trainSkillByScroll,
   tryStrengthen,
@@ -304,6 +306,16 @@ export function useWeiLegend() {
       slotName: getSlotName(slot),
       rows: bagRows.value.filter((row) => row.slot === slot),
     })).filter((group) => group.rows.length > 0);
+  });
+
+  const recommendedBagIndices = computed(() => {
+    const indices = new Set<number>();
+    slotRecommendations.value.forEach((rec) => {
+      if (rec.source === "bag" && rec.bagIndex !== undefined) {
+        indices.add(rec.bagIndex);
+      }
+    });
+    return indices;
   });
 
   const afkRunning = computed(() => afkSession.value?.running === true);
@@ -881,6 +893,20 @@ export function useWeiLegend() {
     notice.value = cheatGenerateEquipment(player.value, 4);
   };
 
+  const sellAllGear = () => {
+    if (!player.value) {
+      return;
+    }
+    notice.value = sellAllEquipment(player.value);
+  };
+
+  const sellNonRecommendedGear = () => {
+    if (!player.value) {
+      return;
+    }
+    notice.value = sellNonRecommendedEquipment(player.value, recommendedBagIndices.value);
+  };
+
   return {
     player,
     maps,
@@ -933,5 +959,7 @@ export function useWeiLegend() {
     doCheatLevelUp,
     doCheatUnlockSkills,
     doCheatSpawnGear,
+    sellAllGear,
+    sellNonRecommendedGear,
   };
 }

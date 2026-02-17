@@ -8,6 +8,7 @@ import type {
   MapArea,
   Player,
   Profession,
+  Rarity,
   SkillState,
   SkillTemplate,
 } from "./types";
@@ -1444,7 +1445,7 @@ function createParalyzeRing(level: number, luck: number, isBoss: boolean): Equip
 }
 
 function shouldDropParalyzeRing(tier: number, luck: number, isBoss: boolean): boolean {
-  const chance = clamp(0.00016 + tier * 0.00006 + luck * 0.000018 + (isBoss ? 0.00025 : 0), 0.0001, 0.0012);
+  const chance = clamp(0.00008 + tier * 0.00003 + luck * 0.000009 + (isBoss ? 0.00012 : 0), 0.00005, 0.0006);
   return Math.random() < chance;
 }
 
@@ -1580,7 +1581,7 @@ function generateEquipment(
     }
   }
 
-  const isElite = Math.random() < clamp(0.012 + luck * 0.0015 + (isBoss ? 0.01 : 0) + (setTemplate ? 0.02 : 0), 0.012, 0.08);
+  const isElite = Math.random() < clamp(0.008 + luck * 0.001 + (isBoss ? 0.006 : 0) + (setTemplate ? 0.012 : 0), 0.008, 0.05);
   const eliteBonus: Equipment["eliteBonus"] = {};
   if (isElite) {
     const roll = randInt(0, 6);
@@ -1798,7 +1799,7 @@ export function runAutoBattle(
     const drops: string[] = [];
     const bossBonus = monster.isBoss ? 2.2 : 1;
     const equipChance =
-      clamp((monster.isBoss ? 0.16 : 0.042) + refreshed.luck * 0.0025, 0.03, monster.isBoss ? 0.33 : 0.12) *
+      clamp((monster.isBoss ? 0.09 : 0.022) + refreshed.luck * 0.0015, 0.015, monster.isBoss ? 0.18 : 0.065) *
       dropRate;
 
     if (Math.random() < equipChance) {
@@ -1813,7 +1814,7 @@ export function runAutoBattle(
       drops.push(`掉落装备：${formatEquipment(equipment)}`);
     }
 
-    if (monster.isBoss && Math.random() < 0.08 * dropRate) {
+    if (monster.isBoss && Math.random() < 0.035 * dropRate) {
       const extra = generateEquipment(monster.level + 1, area.dropTier + 1, refreshed.luck + 4, true, player.profession);
       player.bag.push(extra);
       drops.push(`Boss额外掉落：${formatEquipment(extra)}`);
@@ -2081,6 +2082,77 @@ export function cheatGenerateEquipment(player: Player, count = 4): string {
     player.bag.push(generateEquipment(player.level + randInt(0, 2), 4, luck + 2, true, player.profession));
   }
   return `作弊生效：背包新增 ${n} 件高级装备。`;
+}
+
+function calculateEquipmentSellPrice(equipment: Equipment): number {
+  // 基础价格根据等级需求
+  let basePrice = equipment.levelReq * 15;
+
+  // 稀有度加成
+  const rarityMultiplier: Record<Rarity, number> = {
+    "普通": 1.0,
+    "精良": 1.5,
+    "稀有": 2.2,
+    "史诗": 3.5,
+  };
+  basePrice *= rarityMultiplier[equipment.rarity];
+
+  // 套装加成
+  if (equipment.setId) {
+    basePrice *= 1.4;
+  }
+
+  // 强化加成
+  basePrice *= 1 + equipment.strengthen * 0.15;
+
+  // 麻痹戒指特殊加成
+  if (equipment.special === "paralyze") {
+    basePrice *= 2.5;
+  }
+
+  return Math.floor(basePrice);
+}
+
+export function sellEquipment(player: Player, indices: number[]): string {
+  if (indices.length === 0) {
+    return "没有可出售的装备。";
+  }
+
+  // 按索引降序排序，避免删除时索引错乱
+  const sortedIndices = [...indices].sort((a, b) => b - a);
+
+  let totalGold = 0;
+  let soldCount = 0;
+
+  for (const index of sortedIndices) {
+    if (index >= 0 && index < player.bag.length) {
+      const equipment = player.bag[index];
+      const price = calculateEquipmentSellPrice(equipment);
+      totalGold += price;
+      player.bag.splice(index, 1);
+      soldCount += 1;
+    }
+  }
+
+  player.gold += totalGold;
+  return `成功出售 ${soldCount} 件装备，获得 ${totalGold} 金币。`;
+}
+
+export function sellAllEquipment(player: Player): string {
+  const allIndices = player.bag.map((_, index) => index);
+  return sellEquipment(player, allIndices);
+}
+
+export function sellNonRecommendedEquipment(player: Player, recommendedIndices: Set<number>): string {
+  const nonRecommendedIndices = player.bag
+    .map((_, index) => index)
+    .filter((index) => !recommendedIndices.has(index));
+
+  if (nonRecommendedIndices.length === 0) {
+    return "背包中没有非推荐装备可出售。";
+  }
+
+  return sellEquipment(player, nonRecommendedIndices);
 }
 
 export function getSlotName(slot: EquipmentSlot): string {
