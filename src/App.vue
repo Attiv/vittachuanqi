@@ -29,9 +29,11 @@ const {
   expToNextLevel,
   afkMinuteMs,
   afkBattleRangeText,
+  secretRealmRows,
   createCharacter,
   restart,
   challengeOne,
+  doChallenge秘境,
   startAfk,
   stopAfk,
   equipByIndex,
@@ -443,7 +445,7 @@ watch(player, () => {
                 </van-button>
               </div>
               <div class="log-box" v-if="battleLogs.length > 0">
-                <div v-for="(line, idx) in battleLogs" :key="`${idx}-${line}`">{{ line }}</div>
+                <div v-for="(line, idx) in battleLogs" :key="`${idx}-${line}`" v-html="line"></div>
               </div>
               <van-empty v-else description="暂无战斗日志，点击上方按钮开打。" />
             </div>
@@ -516,6 +518,44 @@ watch(player, () => {
                 <div v-for="(line, idx) in afkLogs" :key="`${idx}-${line}`">{{ line }}</div>
               </div>
               <van-empty v-else description="暂无挂机日志。" />
+            </div>
+          </van-tab>
+
+          <van-tab title="秘境">
+            <div class="tab-body">
+              <div class="realm-intro">
+                <van-notice-bar color="#1989fa" background="#ecf9ff" left-icon="info-o">
+                  挑战秘境Boss有几率获得套装装备，每个秘境有冷却时间
+                </van-notice-bar>
+              </div>
+
+              <div v-if="secretRealmRows.length > 0" class="realm-list">
+                <div v-for="realm in secretRealmRows" :key="realm.id" class="realm-card">
+                  <div class="realm-header">
+                    <div class="realm-title">
+                      <strong>{{ realm.name }}</strong>
+                      <van-tag v-if="realm.isReady" type="success" plain>可挑战</van-tag>
+                      <van-tag v-else type="warning" plain>冷却中</van-tag>
+                    </div>
+                    <div class="realm-level">需求 Lv.{{ realm.minLevel }}</div>
+                  </div>
+                  <div class="realm-desc">{{ realm.description }}</div>
+                  <div class="realm-meta">
+                    <span>冷却时间：{{ realm.cooldownMinutes }}分钟</span>
+                    <span v-if="!realm.isReady">剩余：{{ realm.remainingMinutes }}分钟</span>
+                    <span>已挑战：{{ realm.totalChallenges }}次</span>
+                  </div>
+                  <van-button
+                    size="small"
+                    type="primary"
+                    :disabled="!realm.isReady"
+                    @click="doChallenge秘境(realm.id)"
+                  >
+                    {{ realm.isReady ? '挑战秘境' : `冷却中 (${realm.remainingMinutes}分钟)` }}
+                  </van-button>
+                </div>
+              </div>
+              <van-empty v-else description="等级不足，暂无可挑战的秘境。" />
             </div>
           </van-tab>
 

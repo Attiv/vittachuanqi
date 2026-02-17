@@ -9,6 +9,8 @@ import type {
   Player,
   Profession,
   Rarity,
+  SecretRealm,
+  SecretRealmRecord,
   SkillState,
   SkillTemplate,
 } from "./types";
@@ -1306,6 +1308,34 @@ function performSkill(
   return { text: extraLogs[0], extraLogs: extraLogs.slice(1) };
 }
 
+function getSetTier(setId: string | undefined): "entry" | "advanced" {
+  if (!setId) {
+    return "advanced";
+  }
+  const set = LEGEND_SETS.find((s) => s.id === setId);
+  return (set?.quality ?? "advanced") as "entry" | "advanced";
+}
+
+function getActiveSetIds(player: Player): Set<string> {
+  const counts: Record<string, number> = {};
+  for (const slot of SLOT_ORDER) {
+    const eq = player.equipments[slot];
+    if (eq?.setId) {
+      counts[eq.setId] = (counts[eq.setId] ?? 0) + 1;
+    }
+  }
+
+  const activeIds = new Set<string>();
+  for (const set of LEGEND_SETS) {
+    const count = counts[set.id] ?? 0;
+    if (count >= 2) {
+      // 至少2件才算激活套装
+      activeIds.add(set.id);
+    }
+  }
+  return activeIds;
+}
+
 function normalAttack(
   player: Player,
   actor: FighterState,
@@ -1325,15 +1355,26 @@ function normalAttack(
 
   const extraLogs: string[] = [];
   let totalDamage = 0;
+
+  // 检测套装状态
+  const activeSetIds = getActiveSetIds(player);
+  let setTier: "entry" | "advanced" | null = null;
+  if (activeSetIds.size > 0) {
+    const firstSetId = Array.from(activeSetIds)[0];
+    setTier = getSetTier(firstSetId);
+  }
+
   if (criticalHit(luck, actor.attackSpeed, critRate)) {
     damage = Math.floor(damage * 1.7);
     target.hp -= damage;
     totalDamage += damage;
-    extraLogs.push(`你抓住破绽劈出暴击，造成 ${damage} 点伤害。`);
+    const attackText = `你抓住破绽劈出暴击，造成 ${damage} 点伤害。`;
+    extraLogs.push(setTier ? `<set-${setTier}>${attackText}</set-${setTier}>` : attackText);
   } else {
     target.hp -= damage;
     totalDamage += damage;
-    extraLogs.push(`你打出一记平砍，造成 ${damage} 点伤害。`);
+    const attackText = `你打出一记平砍，造成 ${damage} 点伤害。`;
+    extraLogs.push(setTier ? `<set-${setTier}>${attackText}</set-${setTier}>` : attackText);
   }
 
   const extraSwingChance = clamp((actor.attackSpeed - 1) * 0.22, 0, 0.2);
@@ -1341,7 +1382,8 @@ function normalAttack(
     const extra = Math.max(1, Math.floor(damage * randFloat(0.4, 0.62)));
     target.hp -= extra;
     totalDamage += extra;
-    extraLogs.push(`攻速优势触发追击，再补 ${extra} 点伤害。`);
+    const swingText = `攻速优势触发追击，再补 ${extra} 点伤害。`;
+    extraLogs.push(setTier ? `<set-${setTier}>${swingText}</set-${setTier}>` : swingText);
   }
 
   applyParalyze(target, paralyzeChance, extraLogs);
@@ -2354,4 +2396,237 @@ export function getMaps() {
 
 export function getRarityList() {
   return RARITY_LIST;
+}
+
+// 秘境副本系统
+const SECRET_REALMS: SecretRealm[] = [
+  {
+    id: "realm_zuma_temple",
+    name: "祖玛神殿",
+    description: "祖玛教主的神殿，有几率获得祖玛套装",
+    minLevel: 20,
+    cooldownMinutes: 60,
+    monster: {
+      id: "boss_zuma_leader",
+      name: "祖玛教主",
+      isBoss: true,
+      level: 28,
+      hp: 8500,
+      attack: 180,
+      defense: 85,
+      exp: 2800,
+      gold: 1200,
+      skillText: "召唤祖玛卫士",
+    },
+    setDropChance: 0.35,
+    guaranteedSetId: "set_zuma_warrior",
+  },
+  {
+    id: "realm_holy_temple",
+    name: "圣战神殿",
+    description: "圣战英雄的试炼之地，有几率获得圣战套装",
+    minLevel: 35,
+    cooldownMinutes: 120,
+    monster: {
+      id: "boss_holy_guardian",
+      name: "圣战守护者",
+      isBoss: true,
+      level: 42,
+      hp: 15000,
+      attack: 280,
+      defense: 120,
+      exp: 5500,
+      gold: 2500,
+      skillText: "圣光裁决",
+    },
+    setDropChance: 0.28,
+    guaranteedSetId: "set_shengzhan",
+  },
+  {
+    id: "realm_magic_tower",
+    name: "法神之塔",
+    description: "法神的魔法试炼，有几率获得法神套装",
+    minLevel: 35,
+    cooldownMinutes: 120,
+    monster: {
+      id: "boss_archmage",
+      name: "大法师",
+      isBoss: true,
+      level: 42,
+      hp: 12000,
+      attack: 320,
+      defense: 90,
+      exp: 5500,
+      gold: 2500,
+      skillText: "毁灭之光",
+    },
+    setDropChance: 0.28,
+    guaranteedSetId: "set_fashen",
+  },
+  {
+    id: "realm_tao_sanctuary",
+    name: "天尊圣域",
+    description: "道法至尊的修炼之地，有几率获得天尊套装",
+    minLevel: 35,
+    cooldownMinutes: 120,
+    monster: {
+      id: "boss_tao_master",
+      name: "道法天尊",
+      isBoss: true,
+      level: 42,
+      hp: 13500,
+      attack: 260,
+      defense: 105,
+      exp: 5500,
+      gold: 2500,
+      skillText: "天道轮回",
+    },
+    setDropChance: 0.28,
+    guaranteedSetId: "set_tianzun",
+  },
+  {
+    id: "realm_thunder_abyss",
+    name: "雷霆深渊",
+    description: "雷电之力的源泉，有几率获得雷霆套装",
+    minLevel: 40,
+    cooldownMinutes: 180,
+    monster: {
+      id: "boss_thunder_lord",
+      name: "雷霆之主",
+      isBoss: true,
+      level: 48,
+      hp: 20000,
+      attack: 350,
+      defense: 140,
+      exp: 8000,
+      gold: 3500,
+      skillText: "万雷天引",
+    },
+    setDropChance: 0.25,
+    guaranteedSetId: "set_leiting",
+  },
+  {
+    id: "realm_star_palace",
+    name: "星王殿堂",
+    description: "星辰之王的宫殿，有几率获得星王套装",
+    minLevel: 45,
+    cooldownMinutes: 240,
+    monster: {
+      id: "boss_star_king",
+      name: "星辰之王",
+      isBoss: true,
+      level: 52,
+      hp: 28000,
+      attack: 420,
+      defense: 160,
+      exp: 12000,
+      gold: 5000,
+      skillText: "星辰陨落",
+    },
+    setDropChance: 0.22,
+    guaranteedSetId: "set_xingwang",
+  },
+  {
+    id: "realm_supreme_void",
+    name: "至尊虚空",
+    description: "王者的终极试炼，有几率获得王者套装",
+    minLevel: 50,
+    cooldownMinutes: 360,
+    monster: {
+      id: "boss_supreme_king",
+      name: "至尊王者",
+      isBoss: true,
+      level: 58,
+      hp: 40000,
+      attack: 500,
+      defense: 200,
+      exp: 18000,
+      gold: 8000,
+      skillText: "王者降临",
+    },
+    setDropChance: 0.20,
+    guaranteedSetId: "set_wangzhe",
+  },
+];
+
+export function getSecretRealms(): SecretRealm[] {
+  return SECRET_REALMS;
+}
+
+export function getAvailableSecretRealms(level: number): SecretRealm[] {
+  return SECRET_REALMS.filter((realm) => level >= realm.minLevel);
+}
+
+export function getSecretRealmCooldown(
+  realmId: string,
+  records: Record<string, SecretRealmRecord>,
+): { isReady: boolean; remainingMinutes: number } {
+  const realm = SECRET_REALMS.find((r) => r.id === realmId);
+  if (!realm) {
+    return { isReady: false, remainingMinutes: 0 };
+  }
+
+  const record = records[realmId];
+  if (!record) {
+    return { isReady: true, remainingMinutes: 0 };
+  }
+
+  const now = Date.now();
+  const elapsed = now - record.lastChallengeAt;
+  const elapsedMinutes = Math.floor(elapsed / 60000);
+  const remainingMinutes = Math.max(0, realm.cooldownMinutes - elapsedMinutes);
+
+  return {
+    isReady: remainingMinutes === 0,
+    remainingMinutes,
+  };
+}
+
+export function challengeSecretRealm(
+  player: Player,
+  realmId: string,
+  records: Record<string, SecretRealmRecord>,
+): { result: CombatResult; record: SecretRealmRecord } {
+  const realm = SECRET_REALMS.find((r) => r.id === realmId);
+  if (!realm) {
+    throw new Error("秘境不存在");
+  }
+
+  // 执行战斗
+  const area: MapArea = {
+    id: realmId,
+    name: realm.name,
+    minLevel: realm.minLevel,
+    maxLevel: realm.minLevel + 10,
+    dropTier: 4,
+    monsters: [realm.monster],
+  };
+
+  const result = runAutoBattle(player, area, realm.monster, false);
+
+  // 如果胜利，有几率掉落套装装备
+  if (result.win && Math.random() < realm.setDropChance && realm.guaranteedSetId) {
+    const setTemplate = LEGEND_SETS.find((s) => s.id === realm.guaranteedSetId);
+    if (setTemplate) {
+      const professions = setTemplate.professions || [];
+      if (professions.includes(player.profession)) {
+        // 随机掉落套装中的一件装备
+        const slots = setTemplate.slots;
+        const randomSlot = slots[Math.floor(Math.random() * slots.length)];
+        const equipment = generateSetPiece(setTemplate, randomSlot, player.level + 5, professions);
+        player.bag.push(equipment);
+        result.drops.push(`秘境奖励：${formatEquipment(equipment)}`);
+        result.logs.push(`秘境奖励：${formatEquipment(equipment)}`);
+      }
+    }
+  }
+
+  // 更新挑战记录
+  const newRecord: SecretRealmRecord = {
+    realmId,
+    lastChallengeAt: Date.now(),
+    totalChallenges: (records[realmId]?.totalChallenges || 0) + 1,
+  };
+
+  return { result, record: newRecord };
 }

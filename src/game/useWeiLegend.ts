@@ -8,10 +8,12 @@ import type {
   ItemName,
   Player,
   Profession,
+  SecretRealmRecord,
 } from "./types";
 import {
   buyShopItem,
   calcDerivedStats,
+  challengeSecretRealm,
   cheatAddGold,
   cheatAddItems,
   cheatGenerateEquipment,
@@ -25,9 +27,11 @@ import {
   formatEquipment,
   getAllSets,
   getAvailableMaps,
+  getAvailableSecretRealms,
   getEquipmentStat,
   getMaps,
   getProfessionSkillBook,
+  getSecretRealmCooldown,
   getSetStatuses,
   getShopItems,
   getTrainingNeed,
@@ -135,6 +139,7 @@ export function useWeiLegend() {
   const notice = ref("欢迎来到维传奇，创建角色后即可开始冒险。");
   const afkResult = ref<AfkResult | null>(null);
   const afkSession = ref<AfkSession | null>(null);
+  const secretRealmRecords = ref<Record<string, SecretRealmRecord>>({});
 
   const battleMapId = ref(getMaps()[0].id);
   const afkMapId = ref(getMaps()[0].id);
@@ -362,6 +367,7 @@ export function useWeiLegend() {
     player: player.value,
     afkSession: afkSession.value,
     afkResult: afkResult.value,
+    secretRealmRecords: secretRealmRecords.value,
   });
 
   const persistNow = async () => {
@@ -423,7 +429,11 @@ export function useWeiLegend() {
         stopBattleStream();
         return;
       }
-      battleLogs.value = trimLogs([...battleLogs.value, lines[index]]);
+      // 处理套装颜色标记
+      let line = lines[index];
+      line = line.replace(/<set-entry>(.*?)<\/set-entry>/g, '<span class="combat-set-entry">$1</span>');
+      line = line.replace(/<set-advanced>(.*?)<\/set-advanced>/g, '<span class="combat-set-advanced">$1</span>');
+      battleLogs.value = trimLogs([...battleLogs.value, line]);
       index += 1;
       battleStreamTimer = window.setTimeout(tick, BATTLE_LINE_MS);
     };
@@ -612,6 +622,7 @@ export function useWeiLegend() {
         player.value = restored;
         afkSession.value = encrypted.afkSession ?? null;
         afkResult.value = encrypted.afkResult ?? null;
+        secretRealmRecords.value = encrypted.secretRealmRecords ?? {};
         stopAfkStream(true);
         afkLogs.value = encrypted.afkResult?.logs ?? [];
         notice.value = `已读取加密存档：${restored.name}（${restored.profession}）`;
@@ -651,7 +662,7 @@ export function useWeiLegend() {
   })();
 
   watch(
-    [player, afkSession, afkResult],
+    [player, afkSession, afkResult, secretRealmRecords],
     () => {
       scheduleSave();
     },
@@ -923,6 +934,55 @@ export function useWeiLegend() {
     return getAllSets().filter((set) => (set.professions || []).includes(player.value!.profession));
   });
 
+  const availableSecretRealms = computed(() => {
+    if (!player.value) {
+      return [];
+    }
+    return getAvailableSecretRealms(player.value.level);
+  });
+
+  const secretRealmRows = computed(() => {
+    if (!player.value) {
+      return [];
+    }
+    return availableSecretRealms.value.map((realm) => {
+      const cooldown = getSecretRealmCooldown(realm.id, secretRealmRecords.value);
+      return {
+        id: realm.id,
+        name: realm.name,
+        description: realm.description,
+        minLevel: realm.minLevel,
+        cooldownMinutes: realm.cooldownMinutes,
+        isReady: cooldown.isReady,
+        remainingMinutes: cooldown.remainingMinutes,
+        totalChallenges: secretRealmRecords.value[realm.id]?.totalChallenges || 0,
+      };
+    });
+  });
+
+  const doChallenge秘境 = (realmId: string) => {
+    if (!player.value) {
+      return;
+    }
+    const cooldown = getSecretRealmCooldown(realmId, secretRealmRecords.value);
+    if (!cooldown.isReady) {
+      notice.value = `秘境冷却中，还需 ${cooldown.remainingMinutes} 分钟。`;
+      return;
+    }
+
+    const { result, record } = challengeSecretRealm(player.value, realmId, secretRealmRecords.value);
+    secretRealmRecords.value[realmId] = record;
+
+    const realm = availableSecretRealms.value.find((r) => r.id === realmId);
+    const bossText = realm ? `【${realm.name}】` : "";
+    streamBattleLines([`你进入${bossText}，开始挑战秘境Boss！`, ...result.logs]);
+
+    notice.value = result.win
+      ? `秘境挑战成功！获得经验 ${result.exp}，金币 ${result.gold}。`
+      : "秘境挑战失败，已自动撤离。";
+    syncMapSelection();
+  };
+
   return {
     player,
     maps,
@@ -951,9 +1011,11 @@ export function useWeiLegend() {
     expToNextLevel,
     afkMinuteMs: AFK_MINUTE_MS,
     afkBattleRangeText: `${AFK_BATTLE_COUNT_MIN}-${AFK_BATTLE_COUNT_MAX}`,
+    secretRealmRows,
     createCharacter,
     restart,
     challengeOne,
+    doChallenge秘境,
     startAfk,
     stopAfk,
     equipByIndex,

@@ -160,8 +160,26 @@ export interface AfkSession {
   lastTickAt: number;
 }
 
+export interface SecretRealm {
+  id: string;
+  name: string;
+  description: string;
+  minLevel: number;
+  cooldownMinutes: number;
+  monster: MonsterTemplate;
+  setDropChance: number;
+  guaranteedSetId?: string;
+}
+
+export interface SecretRealmRecord {
+  realmId: string;
+  lastChallengeAt: number;
+  totalChallenges: number;
+}
+
 export interface GameSaveData {
   player: Player | null;
   afkSession: AfkSession | null;
   afkResult: AfkResult | null;
+  secretRealmRecords?: Record<string, SecretRealmRecord>;
 }

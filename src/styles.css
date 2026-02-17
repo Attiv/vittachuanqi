@@ -680,6 +680,68 @@ body {
   color: var(--text-sub);
 }
 
+.realm-intro {
+  margin: 12px;
+}
+
+.realm-list {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.realm-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 10px;
+}
+
+.realm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.realm-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.realm-level {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.realm-desc {
+  font-size: 13px;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
+.realm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.combat-set-entry {
+  color: #c38a0a;
+  font-weight: 500;
+}
+
+.combat-set-advanced {
+  color: #cd3348;
+  font-weight: 500;
+}
+
 @media (max-width: 700px) {
   .page {
     padding: 0 0 calc(16px + env(safe-area-inset-bottom));
